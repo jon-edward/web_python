@@ -12,6 +12,8 @@ function sendStderr(stderr) {
   self.postMessage({ kind: "stderr", stderr });
 }
 
+let nativefsPromise;
+
 async function onInit(message) {
   const { interruptBuffer, id } = message;
 
@@ -29,7 +31,7 @@ async function onInit(message) {
     pyodide.setStdout({ batched: sendStdout });
     pyodide.setStderr({ batched: sendStderr });
 
-    await pyodide.mountNativeFS("/home/pyodide/", directoryHandle);
+    nativefsPromise = pyodide.mountNativeFS("/home/pyodide/", directoryHandle);
 
     self.postMessage({ kind: "finished", id });
   } catch (e) {
@@ -45,7 +47,11 @@ async function onRun(message) {
   const pyodide = await pyodidePromise;
   const { python, id, filename } = message;
 
+  const nativefs = await nativefsPromise;
+
   try {
+    await nativefs.syncfs();
+
     await pyodide.loadPackage("micropip");
     await pyodide.runPythonAsync(
       `
@@ -76,6 +82,8 @@ async function onRun(message) {
       error: error.message,
       id,
     });
+  } finally {
+    await nativefs.syncfs();
   }
 }
 
