@@ -15,7 +15,7 @@ npm run build
 ## Notes
 
 Mounting a local directory is currently only available in
-**Chrome-based browsers** (ie. Chrome, Edge, Chromium), which means
+**Chromium-based browsers** (ie. Chrome, Edge), which means
 this will likely not work on other browsers. Progress toward making this
 widely available is on [MDN's Web Docs](https://developer.mozilla.org/en-US/docs/Web/API/FileSystemHandle/requestPermission).
 
