@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>web_python</title>
+  </head>
+  <body>
+    <h1 style="font-family: monospace, monospace">web_python</h1>
+    <p>
+      This is a browser-based Python interpreter (using
+      <a href="https://pyodide.org/en/stable/" target="_blank">Pyodide</a>).
+      Selecting a project directory will mount it to the Pyodide interpreter and
+      persist any file system operations done from within Python. Mounting a
+      local directory is currently only available in
+      <b>Chrome-based browsers</b> (ie. Chrome, Edge, Chromium), which means
+      this will likely not work on other browsers.
+    </p>
+    <div id="controls">
+      <div>
+        <label class="button"
+          >Select project directory<button
+            id="project-directory"
+          ></button></label
+        ><span class="handle-name" id="project-directory-name"
+          >No directory selected</span
+        >
+      </div>
+      <div>
+        <label for="entry-point" class="button"
+          >Select entry point<button id="entry-point"></button></label
+        ><span class="handle-name" id="entry-point-name">No file selected</span>
+      </div>
+      <div>
+        <label class="button" for="run-button"
+          >Run<button id="run-button" disabled></button></label
+        ><label class="button" for="stop-button" style="margin-left: 4px"
+          >Stop<button id="stop-button" disabled></button></label
+        ><label class="button" for="clear-button" style="margin-left: 4px"
+          >Clear<button
+            id="clear-button"
+            onclick="document.getElementById('stdout').textContent = ''"
+          ></button
+        ></label>
+      </div>
+      <div id="error-message"></div>
+    </div>
+    <div><code id="stdout"></code></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

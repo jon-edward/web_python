@@ -1,0 +1,18 @@
+{
+  "name": "web_python",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@types/wicg-file-system-access": "^2023.10.5",
+    "vite": "^5.4.1",
+    "vite-plugin-cross-origin-isolation": "^0.1.6",
+    "vite-plugin-mkcert": "^1.17.6",
+    "vite-plugin-wasm": "^3.3.0"
+  }
+}
