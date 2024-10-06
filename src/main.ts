@@ -97,6 +97,14 @@ function setEntryPointError(message: string) {
 
 checkDisabledElements();
 
+async function initializedPyWorker(): Promise<PyWorker> {
+  const worker = new PyWorker(stdoutFunc, stderrFunc);
+  await worker.init();
+  return worker;
+}
+
+let pyWorkerPromise: undefined | Promise<PyWorker>;
+
 export class DirectoryNotWritable extends Error {}
 
 projectDirectoryButton.onclick = async () => {
@@ -131,6 +139,8 @@ projectDirectoryButton.onclick = async () => {
   await set("webPythonDirectoryHandle", handle);
 
   setProjectHandleSuccess(handle);
+
+  pyWorkerPromise = initializedPyWorker();
 
   setEntryPointEmpty(); // Entry point should be invalidated, selected directory changed.
   checkDisabledElements();
@@ -184,10 +194,15 @@ runButton.onclick = async () => {
 
   stdout.textContent = "";
 
-  try {
-    const pyWorker = new PyWorker(stdoutFunc, stderrFunc);
-    await pyWorker.init();
+  let pyWorker;
 
+  if (pyWorkerPromise !== undefined) {
+    pyWorker = await pyWorkerPromise;
+  } else {
+    pyWorker = await initializedPyWorker();
+  }
+
+  try {
     stopButton.onclick = async () => {
       // Throw away interpreter, and redirect erroring to console.
       // This frees up the UI while the thread has time to stop.
@@ -200,6 +215,10 @@ runButton.onclick = async () => {
 
     const mainContent = await (await entryPointHandle!.getFile()).text();
     await pyWorker.runPython(mainContent, entryPointHandle!.name);
+  } catch (e) {
+    // Force new PyWorker creation on uncaught error.
+    pyWorkerPromise = undefined;
+    console.error(e);
   } finally {
     running = false;
     checkDisabledElements();
