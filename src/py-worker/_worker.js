@@ -2,7 +2,7 @@
 
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js");
 
-const pyodidePromise = loadPyodide();
+const pyodidePromise = loadPyodide({ args: ["B"] });
 
 function sendStdout(stdout) {
   self.postMessage({ kind: "stdout", stdout });
@@ -17,21 +17,13 @@ let nativefsPromise;
 async function onInit(message) {
   const { interruptBuffer, id } = message;
 
-  const { get } = await import(
-    "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js"
-  );
-
   try {
     const pyodide = await pyodidePromise;
-
-    const directoryHandle = await get("webPythonDirectoryHandle");
 
     pyodide.setInterruptBuffer(interruptBuffer);
 
     pyodide.setStdout({ batched: sendStdout });
     pyodide.setStderr({ batched: sendStderr });
-
-    nativefsPromise = pyodide.mountNativeFS("/home/pyodide/", directoryHandle);
 
     self.postMessage({ kind: "finished", id });
   } catch (e) {
@@ -47,12 +39,20 @@ async function onRun(message) {
   const pyodide = await pyodidePromise;
   const { python, id, filename } = message;
 
-  const nativefs = await nativefsPromise;
+  let nativefs;
 
   try {
-    await nativefs.syncfs();
+    const { get } = await import(
+      "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js"
+    );
+
+    const directoryHandle = await get("webPythonDirectoryHandle");
+
+    nativefs = await pyodide.mountNativeFS("/home/pyodide/", directoryHandle);
 
     await pyodide.loadPackage("micropip");
+
+    // Install all requirements
     await pyodide.runPythonAsync(
       `
         import micropip 
@@ -67,7 +67,21 @@ async function onRun(message) {
           await micropip.install(reqs, keep_going=True)`
     );
 
+    // Reload imported modules from project directory
+    await pyodide.runPythonAsync(
+      `
+        import sys
+        import importlib
+
+        for name, module in list(sys.modules.items()):
+          if hasattr(module, "__file__") and module.__file__ and module.__file__.startswith("/home/pyodide/"):
+            importlib.reload(module)
+      `
+    );
+
     await pyodide.loadPackagesFromImports(python);
+
+    // Run Python and send uncaught errors to stderr.
     await pyodide.runPythonAsync(python, { filename }).catch(async () => {
       sendStderr(
         await pyodide.runPythonAsync(
@@ -75,6 +89,7 @@ async function onRun(message) {
         )
       );
     });
+
     self.postMessage({ kind: "finished", id });
   } catch (error) {
     self.postMessage({
@@ -84,6 +99,11 @@ async function onRun(message) {
     });
   } finally {
     await nativefs.syncfs();
+
+    // To see remote changes that occur between the end of this run
+    // and the start of the next run, the mounted directory needs to be
+    // remounted
+    pyodide.FS.unmount("/home/pyodide/");
   }
 }
 
