@@ -121,7 +121,6 @@ export default class PyWorker {
   }
 
   stop() {
-    console.log(this.interruptBuffer);
     this.interruptBuffer[0] = 2;
   }
 }
