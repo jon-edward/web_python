@@ -8,6 +8,10 @@
   margin-left: 0;
 }
 
+h1 > img {
+  vertical-align: middle;
+}
+
 #controls > div,
 p {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
