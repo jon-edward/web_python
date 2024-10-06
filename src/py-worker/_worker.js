@@ -71,7 +71,6 @@ async function onRun(message) {
     await pyodide.runPythonAsync(
       `
         import sys
-        import importlib
 
         for name, module in list(sys.modules.items()):
           if hasattr(module, "__file__") and module.__file__ and module.__file__.startswith("/home/pyodide/"):
