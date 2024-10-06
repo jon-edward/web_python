@@ -27,7 +27,7 @@ a file instead of feeding it all to the console for large amounts of
 logging.
 
 Lines of `requirements.txt` (if it exists in the project
-directory) are fed directory to `micropip.install`, which
+directory) are fed directly to `micropip.install`, which
 allows for very simple package installation when a pure Python wheel is
 available. See [packages built by Pyodide](https://pyodide.org/en/stable/usage/packages-in-pyodide.html)
 for some common packages which don't have a pure Python wheel.
