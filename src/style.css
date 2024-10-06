@@ -39,7 +39,7 @@ p {
 }
 
 .button:has(> button[disabled]) {
-  background-color: #acacac;
+  background-color: #757575;
   color: #303030;
 }
 
@@ -62,4 +62,46 @@ span.error {
 
 span.success {
   color: green;
+}
+
+#gh-logo-dark {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    background-color: #333333;
+    color: white;
+  }
+
+  a {
+    color: #7568ff;
+  }
+
+  a:visited {
+    color: #f98fff;
+  }
+
+  #gh-logo-light {
+    display: none;
+  }
+
+  #gh-logo-dark {
+    display: inline-block;
+  }
+
+  .button:has(> button[disabled]) {
+    background-color: #757575;
+    color: #303030;
+    border: 1px solid #333333;
+  }
+
+  span.error {
+    color: rgb(255, 104, 104);
+    font-weight: bold;
+  }
+
+  span.success {
+    color: rgb(80, 255, 80);
+  }
 }
