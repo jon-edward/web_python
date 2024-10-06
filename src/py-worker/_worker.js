@@ -67,7 +67,7 @@ async function onRun(message) {
           await micropip.install(reqs, keep_going=True)`
     );
 
-    // Reload imported modules from project directory
+    // Delete imported modules if they originate from project directory
     await pyodide.runPythonAsync(
       `
         import sys
@@ -75,7 +75,7 @@ async function onRun(message) {
 
         for name, module in list(sys.modules.items()):
           if hasattr(module, "__file__") and module.__file__ and module.__file__.startswith("/home/pyodide/"):
-            importlib.reload(module)
+            del sys.modules[name]
       `
     );
 
