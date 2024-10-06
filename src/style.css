@@ -16,7 +16,7 @@ h1 > img {
 p {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-  font-size: small;
+  font-size: medium;
 }
 
 .button > button {
@@ -46,7 +46,7 @@ p {
 .handle-name {
   margin-left: 10px;
   font-family: monospace, monospace;
-  font-size: small;
+  font-size: medium;
 }
 
 #stdout {
@@ -57,6 +57,7 @@ p {
 
 span.error {
   color: red;
+  font-weight: bold;
 }
 
 span.success {

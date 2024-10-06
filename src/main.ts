@@ -97,7 +97,7 @@ function setEntryPointError(message: string) {
 
 checkDisabledElements();
 
-export class DirectoryNotWriteable extends Error {}
+export class DirectoryNotWritable extends Error {}
 
 projectDirectoryButton.onclick = async () => {
   let handle;
@@ -111,9 +111,10 @@ projectDirectoryButton.onclick = async () => {
       !("requestPermission" in handle) ||
       (await handle.requestPermission({ mode: "readwrite" })) !== "granted"
     ) {
-      throw new DirectoryNotWriteable(
-        "This browser does not support writeable file system directory handles."
-      );
+      const errorMessage =
+        "This browser does not support writable file system directory handles.";
+      document.getElementById("error-message")!.textContent = errorMessage;
+      throw new DirectoryNotWritable(errorMessage);
     }
   } catch (e) {
     if (!(e instanceof DOMException)) throw e;
