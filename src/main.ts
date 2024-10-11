@@ -1,226 +1,104 @@
 // Main UI entry point.
 
 import "./style.css";
-import { showDirectoryPicker } from "https://cdn.jsdelivr.net/npm/file-system-access/lib/es2018.js";
 
-const { set } = await import(
-  "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js"
-);
+import { App, ReadonlyAppState } from "./app";
 
-import PyWorker from "./py-worker/py-worker";
+export const appElements = {
+  projectDirectoryButton: document.getElementById(
+    "project-directory"
+  ) as HTMLButtonElement,
+  projectDirectoryName: document.getElementById("project-directory-name")!,
+  entryPointButton: document.getElementById("entry-point") as HTMLButtonElement,
+  entryPointName: document.getElementById("entry-point-name")!,
+  runButton: document.getElementById("run-button") as HTMLButtonElement,
+  stopButton: document.getElementById("stop-button") as HTMLButtonElement,
+  clearButton: document.getElementById("clear-button") as HTMLButtonElement,
+  stdout: document.getElementById("stdout")!,
+  errorMessage: document.getElementById("error-message")!,
+};
 
-const projectDirectoryButton = document.getElementById(
-  "project-directory"
-) as HTMLButtonElement;
+const app = new App(render);
 
-const projectDirectoryName = document.getElementById("project-directory-name")!;
+appElements.projectDirectoryButton.onclick = async () =>
+  await app.requestProjectDirectory();
 
-const entryPointButton = document.getElementById(
-  "entry-point"
-) as HTMLButtonElement;
+appElements.entryPointButton.onclick = async () =>
+  await app.requestEntryPoint();
 
-const entryPointName = document.getElementById("entry-point-name")!;
+appElements.runButton.onclick = async () => await app.run();
 
-const runButton: HTMLButtonElement = document.getElementById(
-  "run-button"
-) as HTMLButtonElement;
+render(app.readonlyState);
 
-const stopButton: HTMLButtonElement = document.getElementById(
-  "stop-button"
-) as HTMLButtonElement;
-
-const stdout = document.getElementById("stdout")!;
-
-let projectHandle: FileSystemDirectoryHandle | undefined;
-let entryPointHandle: FileSystemFileHandle | undefined;
-
-let running = false;
-
-function projectDirectoryButtonDisabled() {
-  return running;
-}
-
-function entryPointInputDisabled() {
-  return running || projectHandle === undefined;
-}
-
-function runButtonDisabled() {
-  return (
-    running || projectHandle === undefined || entryPointHandle === undefined
-  );
-}
-
-function checkDisabledElements() {
-  projectDirectoryButton.disabled = projectDirectoryButtonDisabled();
-  runButton.disabled = runButtonDisabled();
-  entryPointButton.disabled = entryPointInputDisabled();
-  stopButton.disabled = !running;
-}
-
-function setEntryPointEmpty() {
-  if (entryPointHandle) {
-    entryPointHandle = undefined;
-  }
-
-  entryPointName.textContent = "No file selected";
-}
-
-function setProjectHandleSuccess(dirHandle: FileSystemDirectoryHandle) {
-  projectHandle = dirHandle;
-
-  const successContent = document.createElement("span");
-  successContent.textContent = dirHandle.name;
-  successContent.classList.add("success");
-  projectDirectoryName.innerHTML = successContent.outerHTML;
-}
-
-async function setEntryPointSuccess(
-  fileHandle: FileSystemFileHandle,
-  path: Array<string>
-) {
-  entryPointHandle = fileHandle;
-
-  const successContent = document.createElement("span");
-  successContent.textContent = path.join(" / ");
-  successContent.classList.add("success");
-  entryPointName.innerHTML = successContent.outerHTML;
-}
-
-function setEntryPointError(message: string) {
-  entryPointHandle = undefined;
-
-  const errorMessage = document.createElement("span");
-  errorMessage.textContent = message;
-  errorMessage.classList.add("error");
-  entryPointName.innerHTML = errorMessage.outerHTML;
-}
-
-checkDisabledElements();
-
-async function initializedPyWorker(): Promise<PyWorker> {
-  const worker = new PyWorker(stdoutFunc, stderrFunc);
-  await worker.init();
-  return worker;
-}
-
-let pyWorkerPromise: undefined | Promise<PyWorker>;
-
-export class DirectoryNotWritable extends Error {}
-
-projectDirectoryButton.onclick = async () => {
-  let handle;
-
-  try {
-    handle = await showDirectoryPicker({ mode: "readwrite" });
-
-    if (!handle) return;
-
-    if (
-      !("requestPermission" in handle) ||
-      (await handle.requestPermission({ mode: "readwrite" })) !== "granted"
-    ) {
-      const errorMessage =
-        "This browser does not support writable file system directory handles.";
-      document.getElementById("error-message")!.textContent = errorMessage;
-      throw new DirectoryNotWritable(errorMessage);
-    }
-  } catch (e) {
-    if (!(e instanceof DOMException)) throw e;
-    // Cancelling raises a DOMException, treat every other
-    // kind of error like normal.
-  }
-
-  if (!handle) return;
-
-  if (projectHandle && (await projectHandle.isSameEntry(handle))) {
+function setDisabled(state: ReadonlyAppState) {
+  if (state.appErrorMessage) {
+    appElements.projectDirectoryButton.disabled = true;
+    appElements.entryPointButton.disabled = true;
+    appElements.runButton.disabled = true;
+    appElements.stopButton.disabled = true;
+    appElements.clearButton.disabled = true;
     return;
   }
 
-  await set("webPythonDirectoryHandle", handle);
+  appElements.clearButton.disabled = false;
 
-  setProjectHandleSuccess(handle);
-
-  pyWorkerPromise = initializedPyWorker();
-
-  setEntryPointEmpty(); // Entry point should be invalidated, selected directory changed.
-  checkDisabledElements();
-};
-
-entryPointButton.onclick = async () => {
-  const pickerOpts: OpenFilePickerOptions = {
-    types: [
-      {
-        description: "Entry point script",
-        accept: { "text/x-python": [".py"] },
-      },
-    ],
-    excludeAcceptAllOption: true,
-    multiple: false,
-  };
-
-  const [fileHandle] = await window.showOpenFilePicker(pickerOpts);
-
-  if (!projectHandle) throw new Error("Project handle is not defined.");
-
-  const pathSegments = await projectHandle.resolve(fileHandle);
-
-  if (!pathSegments) {
-    setEntryPointError("Entry point provided not in project directory.");
-    checkDisabledElements();
+  if (state.running) {
+    appElements.projectDirectoryButton.disabled = true;
+    appElements.entryPointButton.disabled = true;
+    appElements.runButton.disabled = true;
+    appElements.stopButton.disabled = false;
     return;
   }
 
-  setEntryPointSuccess(fileHandle, pathSegments);
-  checkDisabledElements();
-};
+  appElements.stopButton.disabled = true;
 
-function stdoutFunc(content: string) {
-  const contentElem = document.createElement("span");
-  contentElem.textContent = `${content}\n`;
-  stdout.appendChild(contentElem);
+  appElements.projectDirectoryButton.disabled = false;
+
+  appElements.entryPointButton.disabled =
+    state.projectDirectoryHandle === undefined;
+
+  appElements.runButton.disabled =
+    !state.entryPointHandle || !state.projectDirectoryHandle;
 }
 
-function stderrFunc(content: string) {
-  const contentElem = document.createElement("span");
-  contentElem.classList.add("error");
-  contentElem.textContent = content;
-  stdout.appendChild(contentElem);
-}
+function render(state: ReadonlyAppState) {
+  setDisabled(state);
 
-runButton.onclick = async () => {
-  running = true;
+  if (state.appErrorMessage) {
+    appElements.errorMessage.textContent = state.appErrorMessage;
+    return;
+  }
 
-  checkDisabledElements();
-
-  stdout.textContent = "";
-
-  let pyWorker;
-
-  if (pyWorkerPromise !== undefined) {
-    pyWorker = await pyWorkerPromise;
+  if (state.entryPointName) {
+    appElements.entryPointName.setAttribute(
+      "data-kind",
+      state.entryPointName.kind!
+    );
+    appElements.entryPointName.textContent = state.entryPointName.text;
   } else {
-    pyWorker = await initializedPyWorker();
+    appElements.entryPointName.setAttribute("data-kind", "");
+    appElements.entryPointName.textContent = "No file selected";
   }
 
-  try {
-    stopButton.onclick = async () => {
-      // Throw away interpreter, and redirect erroring to console.
-      // This frees up the UI while the thread has time to stop.
-      pyWorker.stderrFunc = console.log;
-      pyWorker.stdoutFunc = console.error;
-      running = false;
-      checkDisabledElements();
-      pyWorker.stop();
-    };
-
-    const mainContent = await (await entryPointHandle!.getFile()).text();
-    await pyWorker.runPython(mainContent, entryPointHandle!.name);
-  } catch (e) {
-    // Force new PyWorker creation on uncaught error.
-    pyWorkerPromise = undefined;
-    console.error(e);
-  } finally {
-    running = false;
-    checkDisabledElements();
+  if (state.projectDirectoryHandle) {
+    appElements.projectDirectoryName.setAttribute("data-kind", "success");
+    appElements.projectDirectoryName.textContent =
+      state.projectDirectoryHandle.name;
+  } else {
+    appElements.projectDirectoryName.setAttribute("data-kind", "");
+    appElements.projectDirectoryName.textContent = "No directory selected";
   }
-};
+
+  const dummy = document.createElement("div");
+
+  for (const line of state.stdoutLines) {
+    const lineElem = document.createElement("span");
+    if (line.kind === "error") {
+      lineElem.setAttribute("data-kind", "error");
+    }
+    lineElem.textContent = `${line.text}\n`;
+    dummy.appendChild(lineElem);
+  }
+
+  appElements.stdout.innerHTML = dummy.innerHTML;
+}

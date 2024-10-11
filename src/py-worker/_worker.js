@@ -2,7 +2,11 @@
 
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js");
 
-const pyodidePromise = loadPyodide({ args: ["B"] });
+const idbKeyvalPromise = import(
+  "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js"
+);
+
+const pyodidePromise = loadPyodide();
 
 function sendStdout(stdout) {
   self.postMessage({ kind: "stdout", stdout });
@@ -39,14 +43,12 @@ async function onRun(message) {
   const pyodide = await pyodidePromise;
   const { python, id, filename } = message;
 
+  const { get } = await idbKeyvalPromise;
+
   let nativefs;
 
   try {
-    const { get } = await import(
-      "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js"
-    );
-
-    const directoryHandle = await get("webPythonDirectoryHandle");
+    const directoryHandle = await get("projectDirectoryHandle");
 
     nativefs = await pyodide.mountNativeFS("/home/pyodide/", directoryHandle);
 

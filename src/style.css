@@ -55,13 +55,13 @@ p {
   overflow-y: scroll;
 }
 
-span.error {
-  color: red;
-  font-weight: bold;
+*[data-kind="success"] {
+  color: green;
 }
 
-span.success {
-  color: green;
+*[data-kind="error"] {
+  color: red;
+  font-weight: bold;
 }
 
 #gh-logo-dark {
@@ -96,12 +96,12 @@ span.success {
     border: 1px solid #333333;
   }
 
-  span.error {
-    color: rgb(255, 104, 104);
-    font-weight: bold;
+  *[data-kind="success"] {
+    color: rgb(80, 255, 80);
   }
 
-  span.success {
-    color: rgb(80, 255, 80);
+  *[data-kind="error"] {
+    color: rgb(255, 104, 104);
+    font-weight: bold;
   }
 }

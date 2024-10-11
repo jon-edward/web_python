@@ -1,6 +1,6 @@
 // Fills in experimental `requestPermission` function on FileSystemDirectoryHandle
 type FileSystemDirectoryHandleExperimental = FileSystemDirectoryHandle & {
-  requestPermission: (descriptor?: {
+  requestPermission?: (descriptor?: {
     mode?: "read" | "readwrite";
   }) => Promise<"granted" | "denied" | "prompt">;
 };
