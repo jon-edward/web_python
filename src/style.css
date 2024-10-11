@@ -1,4 +1,4 @@
-#controls > * {
+.controls-block {
   display: block;
   padding: 4px;
 }
@@ -25,17 +25,21 @@ p {
 
 .button {
   text-decoration: none;
+  font-size: medium;
   background-color: #eeeeee;
   color: #1f1f1f;
-  padding: 2px 6px 2px 6px;
-  border-top: 1px solid #cccccc;
-  border-right: 1px solid #333333;
-  border-bottom: 1px solid #333333;
-  border-left: 1px solid #cccccc;
+  padding: 1px 6px;
+  border-radius: 3px;
 }
 
 .button:hover {
   background-color: #d9d9d9;
+}
+
+.controls-block:has(.button > button[disabled]) {
+  .handle-name {
+    opacity: 0.5;
+  }
 }
 
 .button:has(> button[disabled]) {
@@ -46,13 +50,26 @@ p {
 .handle-name {
   margin-left: 10px;
   font-family: monospace, monospace;
-  font-size: medium;
+  font-size: small;
 }
 
 #stdout {
   white-space: pre;
-  max-height: 500px;
+  max-height: 50vh;
   overflow-y: scroll;
+  display: block;
+  width: 100% - 10px;
+  min-height: 15px;
+  background-color: #1f1f1f;
+  color: white;
+  padding: 10px;
+  border-radius: 2px;
+  color-scheme: dark;
+  margin-top: 20px;
+}
+
+#stdout > span[data-kind="error"] {
+  color: rgb(255, 104, 104);
 }
 
 *[data-kind="success"] {
@@ -93,7 +110,6 @@ p {
   .button:has(> button[disabled]) {
     background-color: #757575;
     color: #303030;
-    border: 1px solid #333333;
   }
 
   *[data-kind="success"] {

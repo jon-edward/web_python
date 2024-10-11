@@ -88,17 +88,4 @@ function render(state: ReadonlyAppState) {
     appElements.projectDirectoryName.setAttribute("data-kind", "");
     appElements.projectDirectoryName.textContent = "No directory selected";
   }
-
-  const dummy = document.createElement("div");
-
-  for (const line of state.stdoutLines) {
-    const lineElem = document.createElement("span");
-    if (line.kind === "error") {
-      lineElem.setAttribute("data-kind", "error");
-    }
-    lineElem.textContent = `${line.text}\n`;
-    dummy.appendChild(lineElem);
-  }
-
-  appElements.stdout.innerHTML = dummy.innerHTML;
 }

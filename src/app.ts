@@ -5,6 +5,10 @@ import { set } from "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js";
 import { showDirectoryPicker } from "https://cdn.jsdelivr.net/npm/file-system-access/lib/es2018.js";
 import PyWorker from "./py-worker/py-worker";
 
+// Stdout is potentially changed *very* frequently, making direct manipulation
+// cheaper than passing this as state.
+const stdout = document.getElementById("stdout")!;
+
 export type StyledText = {
   readonly text: string;
   readonly kind?: "success" | "error";
@@ -12,7 +16,6 @@ export type StyledText = {
 
 export type ReadonlyAppState = {
   readonly running: boolean;
-  readonly stdoutLines: Array<StyledText>;
   readonly entryPointName?: StyledText;
   readonly appErrorMessage?: string;
   readonly projectDirectoryHandle?: FileSystemDirectoryHandle;
@@ -26,16 +29,12 @@ type AppState = {
 export class App {
   private state: AppState;
   private pyWorkerPromise?: Promise<PyWorker>;
-  private renderCallback: (state: ReadonlyAppState) => void;
 
   readonly readonlyState: ReadonlyAppState;
 
   constructor(renderCallback: (state: ReadonlyAppState) => void) {
-    this.renderCallback = renderCallback;
-
     const state: AppState = {
       running: false,
-      stdoutLines: [],
     };
 
     const readonlyState = new Proxy(state, {
@@ -61,14 +60,28 @@ export class App {
     this.readonlyState = readonlyState;
   }
 
+  isStdoutScrolledDown(): boolean {
+    return (
+      Math.abs(stdout.scrollHeight - stdout.scrollTop - stdout.clientHeight) <
+      10 // arbitrary tolerance, 10 works pretty well
+    );
+  }
+
   private stdoutFunc(text: string) {
-    this.state.stdoutLines.push({ text });
-    this.renderCallback(this.readonlyState);
+    const isScrolled = this.isStdoutScrolledDown();
+    const contentElem = document.createElement("span");
+    contentElem.textContent = `${text}\n`;
+    stdout.appendChild(contentElem);
+    if (isScrolled) stdout.scrollTop = stdout.scrollHeight;
   }
 
   private stderrFunc(text: string) {
-    this.state.stdoutLines.push({ kind: "error", text });
-    this.renderCallback(this.readonlyState);
+    const isScrolled = this.isStdoutScrolledDown();
+    const contentElem = document.createElement("span");
+    contentElem.textContent = `${text}\n`;
+    contentElem.setAttribute("data-kind", "error");
+    stdout.appendChild(contentElem);
+    if (isScrolled) if (isScrolled) stdout.scrollTop = stdout.scrollHeight;
   }
 
   private async initializedPyWorker(): Promise<PyWorker> {
@@ -168,8 +181,6 @@ export class App {
   async run() {
     this.state.running = true;
 
-    this.state.stdoutLines = [];
-
     let pyWorker;
 
     if (this.pyWorkerPromise !== undefined) {
@@ -182,10 +193,11 @@ export class App {
       document.getElementById("stop-button")!.onclick = async () => {
         // Throw away interpreter, and redirect erroring to console.
         // This frees up the UI while the thread has time to stop.
-        pyWorker.stderrFunc = console.log;
-        pyWorker.stdoutFunc = console.error;
+        pyWorker.stdoutFunc = (_s) => {};
+        pyWorker.stderrFunc = (_s) => {};
         this.state.running = false;
         pyWorker.stop();
+        this.pyWorkerPromise = undefined;
       };
 
       const mainContent = await (
