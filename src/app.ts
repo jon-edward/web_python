@@ -3,7 +3,7 @@
 
 import { set } from "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js";
 import { showDirectoryPicker } from "https://cdn.jsdelivr.net/npm/file-system-access/lib/es2018.js";
-import PyWorker from "./py-worker/py-worker";
+import RunnerWorker from "./runner-worker/runner-worker";
 
 // Stdout is potentially changed *very* frequently, making direct manipulation
 // cheaper than passing this as state.
@@ -28,7 +28,7 @@ type AppState = {
 
 export class App {
   private state: AppState;
-  private pyWorkerPromise?: Promise<PyWorker>;
+  private runnerWorker?: RunnerWorker;
 
   readonly readonlyState: ReadonlyAppState;
 
@@ -84,15 +84,6 @@ export class App {
     if (isScrolled) if (isScrolled) stdout.scrollTop = stdout.scrollHeight;
   }
 
-  private async initializedPyWorker(): Promise<PyWorker> {
-    const worker = new PyWorker(
-      (s) => this.stdoutFunc(s),
-      (s) => this.stderrFunc(s)
-    );
-    await worker.init();
-    return worker;
-  }
-
   async requestProjectDirectory() {
     let handle;
 
@@ -137,7 +128,10 @@ export class App {
     // Clear entry point location on
     // project directory change.
 
-    this.pyWorkerPromise = this.initializedPyWorker();
+    this.runnerWorker = new RunnerWorker(
+      (s) => this.stdoutFunc(s),
+      (s) => this.stderrFunc(s)
+    );
   }
 
   async requestEntryPoint() {
@@ -181,33 +175,38 @@ export class App {
   async run() {
     this.state.running = true;
 
-    let pyWorker;
-
-    if (this.pyWorkerPromise !== undefined) {
-      pyWorker = await this.pyWorkerPromise;
-    } else {
-      pyWorker = await this.initializedPyWorker();
+    if (this.runnerWorker === undefined) {
+      this.runnerWorker = new RunnerWorker(
+        (s) => this.stdoutFunc(s),
+        (s) => this.stderrFunc(s)
+      );
     }
 
     try {
       document.getElementById("stop-button")!.onclick = async () => {
         // Throw away interpreter, and redirect erroring to console.
         // This frees up the UI while the thread has time to stop.
-        pyWorker.stdoutFunc = (_s) => {};
-        pyWorker.stderrFunc = (_s) => {};
+        if (this.runnerWorker === undefined) return;
+
+        this.runnerWorker.stdoutFunc = (_s) => {};
+        this.runnerWorker.stderrFunc = (_s) => {};
         this.state.running = false;
-        pyWorker.stop();
-        this.pyWorkerPromise = undefined;
+        this.runnerWorker.stop();
+
+        this.runnerWorker = undefined;
       };
 
       const mainContent = await (
         await this.state.entryPointHandle!.getFile()
       ).text();
 
-      await pyWorker.runPython(mainContent, this.state.entryPointHandle!.name);
+      await this.runnerWorker.runPython(
+        mainContent,
+        this.state.entryPointHandle!.name
+      );
     } catch (e) {
-      // Force new PyWorker creation on uncaught error.
-      this.pyWorkerPromise = undefined;
+      // Force new PyWorker creation on error.
+      this.runnerWorker = undefined;
       console.error(e);
     } finally {
       this.state.running = false;

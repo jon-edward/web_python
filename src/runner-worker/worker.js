@@ -8,17 +8,41 @@ const idbKeyvalPromise = import(
 
 const pyodidePromise = loadPyodide();
 
+const mountPoint = "/home/pyodide/";
+
+/**
+ * @typedef {Object} SetInterruptBufferMessage
+ * @property {"set-interrupt-buffer"} kind
+ * @property {number} id
+ * @property {SharedArrayBuffer} buffer
+ *
+ * @typedef {Object} RunMessage
+ * @property {"run"} kind
+ * @property {number} id
+ * @property {string} python
+ * @property {string | undefined} filename
+ */
+
+/**
+ * @param {string} stdout
+ */
 function sendStdout(stdout) {
   self.postMessage({ kind: "stdout", stdout });
 }
 
+/**
+ * @param {string} stderr
+ */
 function sendStderr(stderr) {
   self.postMessage({ kind: "stderr", stderr });
 }
 
 let nativefsPromise;
 
-async function onInit(message) {
+/**
+ * @param {SetInterruptBufferMessage} message
+ */
+async function onSetInterruptBuffer(message) {
   const { interruptBuffer, id } = message;
 
   try {
@@ -39,19 +63,20 @@ async function onInit(message) {
   }
 }
 
+/**
+ * @param {RunMessage} message
+ */
 async function onRun(message) {
   const pyodide = await pyodidePromise;
   const { python, id, filename } = message;
 
   const { get } = await idbKeyvalPromise;
 
-  let nativefs;
+  const directoryHandle = await get("projectDirectoryHandle");
+
+  const nativefs = await pyodide.mountNativeFS(mountPoint, directoryHandle);
 
   try {
-    const directoryHandle = await get("projectDirectoryHandle");
-
-    nativefs = await pyodide.mountNativeFS("/home/pyodide/", directoryHandle);
-
     await pyodide.loadPackage("micropip");
 
     // Install all requirements
@@ -66,7 +91,8 @@ async function onRun(message) {
 
         if req_f.is_file():
           reqs = [x.strip() for x in open("requirements.txt", "r").readlines() if x.strip()]
-          await micropip.install(reqs, keep_going=True)`
+          await micropip.install(reqs, keep_going=True)
+      `
     );
 
     // Delete imported modules if they originate from project directory
@@ -75,7 +101,10 @@ async function onRun(message) {
         import sys
 
         for name, module in list(sys.modules.items()):
-          if hasattr(module, "__file__") and module.__file__ and module.__file__.startswith("/home/pyodide/"):
+          if not hasattr(module, "__file__") or not module.__file__:
+            continue
+          
+          if module.__file__.startswith("${mountPoint}"):
             del sys.modules[name]
       `
     );
@@ -83,15 +112,22 @@ async function onRun(message) {
     await pyodide.loadPackagesFromImports(python);
 
     // Run Python and send uncaught errors to stderr.
-    await pyodide.runPythonAsync(python, { filename }).catch(async () => {
-      sendStderr(
-        await pyodide.runPythonAsync(
-          "import sys; import traceback; '\\n'.join(traceback.format_exception(sys.last_exc))"
-        )
-      );
-    });
+    const result = await pyodide
+      .runPythonAsync(python, { filename })
+      .catch(async () => {
+        sendStderr(
+          await pyodide.runPythonAsync(
+            `
+              import sys
+              import traceback
+              
+              '\\n'.join(traceback.format_exception(sys.last_exc))
+            `
+          )
+        );
+      });
 
-    self.postMessage({ kind: "finished", id });
+    self.postMessage({ kind: "finished", result, id });
   } catch (error) {
     self.postMessage({
       kind: "error",
@@ -103,18 +139,22 @@ async function onRun(message) {
 
     // To see remote changes that occur between the end of this run
     // and the start of the next run, the mounted directory needs to be
-    // remounted
-    pyodide.FS.unmount("/home/pyodide/");
+    // remounted.
+    pyodide.FS.unmount(mountPoint);
+    await nativefs.syncfs();
   }
 }
 
+/**
+ * @param {MessageEvent<SetInterruptBufferMessage | RunMessage>} event
+ */
 self.onmessage = async (event) => {
   const { data } = event;
 
   switch (data.kind) {
-    case "init":
+    case "set-interrupt-buffer":
       // Initialize interpreter with interrupt buffer.
-      onInit(data);
+      onSetInterruptBuffer(data);
       break;
     case "run":
       // Run some code.

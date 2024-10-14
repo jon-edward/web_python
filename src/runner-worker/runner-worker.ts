@@ -3,6 +3,7 @@
 interface FinishedMessage {
   kind: "finished";
   id: number;
+  result?: any;
 }
 
 interface StdoutMessage {
@@ -21,21 +22,25 @@ interface ErrorMessage {
   id: number;
 }
 
-export default class PyWorker {
+export default class RunnerWorker {
   stderrFunc: (content: string) => void;
   stdoutFunc: (content: string) => void;
 
-  private callbacks: Record<number, () => void>;
+  private callbacks: Record<
+    number,
+    (message: FinishedMessage | ErrorMessage) => void
+  >;
   private worker: Worker;
   private id: number;
   private interruptBuffer: Uint8Array;
+  private setInterruptBufferPromise: Promise<FinishedMessage | ErrorMessage>;
 
   constructor(
     stdoutFunc: (content: string) => void,
     stderrFunc: (content: string) => void
   ) {
     this.callbacks = {};
-    this.worker = new Worker(new URL("./_worker", import.meta.url), {
+    this.worker = new Worker(new URL("./worker", import.meta.url), {
       type: "classic",
     });
     this.worker.onmessage = (event: {
@@ -45,17 +50,22 @@ export default class PyWorker {
     this.stdoutFunc = stdoutFunc;
     this.stderrFunc = stderrFunc;
     this.interruptBuffer = new Uint8Array(new SharedArrayBuffer(1));
+
+    this.setInterruptBufferPromise = this.sendMessage({
+      kind: "set-interrupt-buffer",
+      interruptBuffer: this.interruptBuffer,
+    });
   }
 
-  private invokeCallback(id: number) {
+  private invokeCallback(message: FinishedMessage | ErrorMessage) {
+    const id = message.id;
     const onSuccess = this.callbacks[id];
     delete this.callbacks[id];
-    onSuccess();
+    onSuccess(message);
   }
 
   private onFinished(message: FinishedMessage) {
-    const { id } = message;
-    this.invokeCallback(id);
+    this.invokeCallback(message);
   }
 
   private onStderr(message: StderrMessage) {
@@ -69,9 +79,8 @@ export default class PyWorker {
   }
 
   private onError(message: ErrorMessage) {
-    const { error, id } = message;
-    this.stderrFunc(`Error at worker: \n${error}`);
-    this.invokeCallback(id);
+    this.stderrFunc(`Error at worker: \n${message.error}`);
+    this.invokeCallback(message);
   }
 
   private onMessage(
@@ -97,9 +106,11 @@ export default class PyWorker {
     }
   }
 
-  private async sendMessage(data: any) {
+  private async sendMessage(
+    data: any
+  ): Promise<FinishedMessage | ErrorMessage> {
     this.id = (this.id + 1) % Number.MAX_SAFE_INTEGER;
-    return new Promise<void>((onSuccess) => {
+    return new Promise<FinishedMessage | ErrorMessage>((onSuccess) => {
       this.callbacks[this.id] = onSuccess;
       this.worker.postMessage({
         id: this.id,
@@ -109,15 +120,9 @@ export default class PyWorker {
   }
 
   async runPython(python: string, filename: string) {
+    await this.setInterruptBufferPromise;
     this.interruptBuffer[0] = 0;
-    await this.sendMessage({ kind: "run", python, filename });
-  }
-
-  async init() {
-    await this.sendMessage({
-      kind: "init",
-      interruptBuffer: this.interruptBuffer,
-    });
+    return await this.sendMessage({ kind: "run", python, filename });
   }
 
   stop() {
