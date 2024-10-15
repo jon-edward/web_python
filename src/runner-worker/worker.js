@@ -111,7 +111,7 @@ async function onRun(message) {
 
     await pyodide.loadPackagesFromImports(python);
 
-    // Run Python and send uncaught errors to stderr.
+    // Run Python and send uncaught errors to stderr, excluding Pyodide runner errors.
     const result = await pyodide
       .runPythonAsync(python, { filename })
       .catch(async () => {
@@ -120,8 +120,9 @@ async function onRun(message) {
             `
               import sys
               import traceback
-              exc_lines = list(traceback.format_exception(sys.last_exc))
-              '\\n'.join(exc_lines[:1] + exc_lines[3:])  # Excludes Pyodide traceback
+              exc = sys.last_exc 
+              tb = exc.__traceback__.tb_next.tb_next
+              "".join(traceback.format_exception(None, value=exc, tb=tb))
             `
           )
         );
