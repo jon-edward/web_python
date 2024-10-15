@@ -1,6 +1,4 @@
 // Mypy worker.
-//
-// Serves mypy output on a timer forever. Is started by any kind of message.
 
 importScripts("https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js");
 
@@ -147,9 +145,18 @@ async function mypyForever() {
   }
 }
 
-self.onmessage = async (_event) => {
-  if (!running) {
-    running = true;
-    await mypyForever();
+self.onmessage = async (event) => {
+  const { data } = event;
+
+  switch (data.kind) {
+    case "start":
+      if (!running) {
+        running = true;
+        await mypyForever();
+      }
+      break;
+    case "stop":
+      running = false;
+      break;
   }
 };

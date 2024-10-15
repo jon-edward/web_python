@@ -120,8 +120,8 @@ async function onRun(message) {
             `
               import sys
               import traceback
-              
-              '\\n'.join(traceback.format_exception(sys.last_exc))
+              exc_lines = list(traceback.format_exception(sys.last_exc))
+              '\\n'.join(exc_lines[:1] + exc_lines[3:])  # Excludes Pyodide traceback
             `
           )
         );

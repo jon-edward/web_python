@@ -7,63 +7,67 @@
     <title>web_python</title>
   </head>
   <body>
-    <h1 style="font-family: monospace, monospace">
-      web_python
-      <a href="https://github.com/jon-edward/web_python" target="_blank"
-        ><img
-          id="gh-logo-dark"
-          height="25"
-          width="25"
-          src="/src/assets/github-mark-dark.svg"
-          title="View on GitHub" /><img
-          id="gh-logo-light"
-          height="25"
-          width="25"
-          src="/src/assets/github-mark.svg"
-          title="View on GitHub"
-      /></a>
-    </h1>
-    <p>
-      This is a browser-based Python interpreter (using
-      <a href="https://pyodide.org/en/stable/" target="_blank">Pyodide</a>).
-    </p>
-    <p>
-      Selecting a project directory will mount it to the Pyodide interpreter and
-      persist any file system operations done from within Python. Mounting a
-      local directory is currently only available in
-      <b>Chromium-based browsers</b> (ie. Chrome, Edge), which means this will
-      likely not work on other browsers.
-    </p>
-    <div id="controls">
-      <div class="controls-block">
-        <label class="button"
-          >Select project directory<button
-            id="project-directory"
-          ></button></label
-        ><span class="handle-name" id="project-directory-name"
-          >No directory selected</span
-        >
+    <div id="app">
+      <h1 style="font-family: monospace, monospace">
+        web_python
+        <a href="https://github.com/jon-edward/web_python" target="_blank"
+          ><img
+            id="gh-logo-dark"
+            height="25"
+            width="25"
+            src="/src/assets/github-mark-dark.svg"
+            title="View on GitHub" /><img
+            id="gh-logo-light"
+            height="25"
+            width="25"
+            src="/src/assets/github-mark.svg"
+            title="View on GitHub"
+        /></a>
+      </h1>
+      <p>
+        This is a browser-based Python interpreter (using
+        <a href="https://pyodide.org/en/stable/" target="_blank">Pyodide</a>).
+      </p>
+      <p>
+        Selecting a project directory will mount it to the Pyodide interpreter
+        and persist any file system operations done from within Python. Mounting
+        a local directory is currently only available in
+        <b>Chromium-based browsers</b> (ie. Chrome, Edge), which means this will
+        likely not work on other browsers.
+      </p>
+      <div id="controls">
+        <div class="controls-block">
+          <label class="button"
+            >Select project directory<button
+              id="project-directory"
+            ></button></label
+          ><span class="handle-name" id="project-directory-name"
+            >No directory selected</span
+          >
+        </div>
+        <div class="controls-block">
+          <label for="entry-point" class="button"
+            >Select entry point<button id="entry-point"></button></label
+          ><span class="handle-name" id="entry-point-name"
+            >No file selected</span
+          >
+        </div>
+        <div class="controls-block">
+          <label class="button" for="run-button"
+            >Run<button id="run-button" disabled></button></label
+          ><label class="button" for="stop-button" style="margin-left: 4px"
+            >Stop<button id="stop-button" disabled></button></label
+          ><label class="button" for="clear-button" style="margin-left: 4px"
+            >Clear<button
+              id="clear-button"
+              onclick="document.getElementById('stdout').textContent = ''"
+            ></button
+          ></label>
+        </div>
       </div>
-      <div class="controls-block">
-        <label for="entry-point" class="button"
-          >Select entry point<button id="entry-point"></button></label
-        ><span class="handle-name" id="entry-point-name">No file selected</span>
-      </div>
-      <div class="controls-block">
-        <label class="button" for="run-button"
-          >Run<button id="run-button" disabled></button></label
-        ><label class="button" for="stop-button" style="margin-left: 4px"
-          >Stop<button id="stop-button" disabled></button></label
-        ><label class="button" for="clear-button" style="margin-left: 4px"
-          >Clear<button
-            id="clear-button"
-            onclick="document.getElementById('stdout').textContent = ''"
-          ></button
-        ></label>
-      </div>
+      <span data-kind="error" id="error-message"></span>
+      <code class="terminal-panel" id="stdout"></code>
+      <script type="module" src="/src/main.ts"></script>
     </div>
-    <span data-kind="error" id="error-message"></span>
-    <div><code id="stdout"></code></div>
-    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

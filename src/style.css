@@ -1,11 +1,23 @@
-.controls-block {
-  display: block;
-  padding: 4px;
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  margin: 10px;
+  max-height: calc(100vh - 20px);
 }
 
 #controls {
-  margin: 10px;
-  margin-left: 0;
+  margin-bottom: 20px;
+}
+
+.controls-block {
+  display: block;
+  margin: 4px;
 }
 
 h1 > img {
@@ -17,6 +29,10 @@ p {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   font-size: medium;
+}
+
+p {
+  margin-top: 0;
 }
 
 .button > button {
@@ -53,21 +69,6 @@ p {
   font-size: small;
 }
 
-#stdout {
-  white-space: pre;
-  max-height: 50vh;
-  overflow-y: scroll;
-  display: block;
-  width: 100% - 10px;
-  min-height: 15px;
-  background-color: #1f1f1f;
-  color: white;
-  padding: 10px;
-  border-radius: 2px;
-  color-scheme: dark;
-  margin-top: 20px;
-}
-
 #stdout > span[data-kind="error"] {
   color: rgb(255, 104, 104);
 }
@@ -83,6 +84,18 @@ p {
 
 #gh-logo-dark {
   display: none;
+}
+
+.terminal-panel {
+  white-space: pre;
+  background-color: #1f1f1f;
+  color: white;
+  border-radius: 2px;
+  color-scheme: dark;
+  overflow: auto;
+  flex-grow: 1;
+  height: 100vh;
+  padding: 10px;
 }
 
 @media (prefers-color-scheme: dark) {

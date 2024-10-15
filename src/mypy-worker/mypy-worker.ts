@@ -24,6 +24,10 @@ export default class MypyWorker {
   }
 
   start() {
-    this.worker.postMessage({ start: true });
+    this.worker.postMessage({ kind: "start" });
+  }
+
+  stop() {
+    this.worker.postMessage({ kind: "stop" });
   }
 }
