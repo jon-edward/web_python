@@ -168,7 +168,7 @@ export class App {
 
     this.state.entryPointName = {
       kind: "success",
-      text: pathSegments.join(" / "),
+      text: pathSegments.join("/"),
     };
   }
 
@@ -202,7 +202,7 @@ export class App {
 
       await this.runnerWorker.runPython(
         mainContent,
-        this.state.entryPointHandle!.name
+        this.state.entryPointName!.text
       );
     } catch (e) {
       // Force new PyWorker creation on error.
