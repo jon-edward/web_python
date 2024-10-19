@@ -64,9 +64,20 @@
             ></button
           ></label>
         </div>
+        <input
+          type="checkbox"
+          id="mypy-run-checkbox"
+          name="mypy-run-checkbox"
+          checked
+        />
+        <label for="mypy-run-checkbox">Mypy type checking</label>
       </div>
       <span data-kind="error" id="error-message"></span>
-      <code class="terminal-panel" id="stdout"></code>
+      <div id="terminal">
+        <code class="terminal-panel" id="stdout"></code>
+        <div id="stdout-resize"></div>
+        <code class="terminal-panel" id="mypy-output"></code>
+      </div>
       <script type="module" src="/src/main.ts"></script>
     </div>
   </body>

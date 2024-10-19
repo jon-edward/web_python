@@ -5,6 +5,8 @@ This is a browser-based Python interpreter (using
 a local project directory and run an entry point script from within the
 directory.
 
+![web_python UI](./img.png)
+
 ## Building from source
 
 ```bash
@@ -31,3 +33,8 @@ directory) are fed directly to `micropip.install`, which
 allows for very simple package installation when a pure Python wheel is
 available. See [packages built by Pyodide](https://pyodide.org/en/stable/usage/packages-in-pyodide.html)
 for some common packages which don't have a pure Python wheel.
+
+Static type checking is available using [mypy](https://mypy-lang.org/).
+The site polls for changes to the project directory, and
+feeds mypy's report to a separate terminal panel. This can be disabled
+if desired.

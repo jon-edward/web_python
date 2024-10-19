@@ -3,11 +3,64 @@
 
 import { set } from "https://unpkg.com/idb-keyval@5.0.2/dist/esm/index.js";
 import { showDirectoryPicker } from "https://cdn.jsdelivr.net/npm/file-system-access/lib/es2018.js";
-import RunnerWorker from "./runner-worker/runner-worker";
+
+import PythonRunner from "./workers/python-runner";
+import MypyTypeChecker, { MypyResult } from "./workers/mypy-type-checker";
 
 // Stdout is potentially changed *very* frequently, making direct manipulation
 // cheaper than passing this as state.
 const stdout = document.getElementById("stdout")!;
+
+await set("projectDirectoryHandle", undefined);
+await set("entryPointHandle", undefined);
+
+const mypyOutput = document.getElementById("mypy-output")!;
+
+const stdoutResize = document.getElementById("stdout-resize")!;
+
+let stdoutResizeSelected: boolean = false;
+
+stdoutResize.addEventListener("mousedown", (_event) => {
+  stdoutResizeSelected = true;
+  document.body.addEventListener("mousemove", resizingMove);
+  document.body.addEventListener("mouseup", finishResizing);
+});
+
+function resizingMove(event: MouseEvent) {
+  if (stdoutResizeSelected) {
+    const stdoutRect = stdout.getBoundingClientRect();
+    stdout.style.width = `${event.clientX - stdoutRect.left - 25}px`;
+  } else {
+    finishResizing();
+  }
+}
+
+const finishResizing = () => {
+  stdoutResizeSelected = false;
+  document.body.removeEventListener("mouseup", finishResizing);
+  stdoutResize.removeEventListener("mousemove", resizingMove);
+};
+
+function showMypyOutput(output: MypyResult) {
+  const mypyOutputHeader = document.createElement("span");
+  mypyOutputHeader.textContent = `[mypy report @ ${new Date().toLocaleTimeString()}]\n\n`;
+
+  const errorSpan = document.createElement("span");
+  errorSpan.setAttribute("data-kind", output[2] ? "error" : "success");
+
+  errorSpan.textContent = output[0] ? output[0] + "\n\n" : "";
+
+  const infoSpan = document.createElement("span");
+  infoSpan.setAttribute("data-kind", "warning");
+
+  infoSpan.textContent = output[1];
+
+  mypyOutput.textContent = "";
+
+  mypyOutput.appendChild(mypyOutputHeader);
+  mypyOutput.appendChild(errorSpan);
+  mypyOutput.appendChild(infoSpan);
+}
 
 export type StyledText = {
   readonly text: string;
@@ -28,7 +81,9 @@ type AppState = {
 
 export class App {
   private state: AppState;
-  private runnerWorker?: RunnerWorker;
+
+  private runnerWorker?: PythonRunner;
+  private mypyTypeChecker: MypyTypeChecker;
 
   readonly readonlyState: ReadonlyAppState;
 
@@ -58,12 +113,27 @@ export class App {
     });
 
     this.readonlyState = readonlyState;
+
+    this.mypyTypeChecker = new MypyTypeChecker();
+    this.mypyTypeChecker.typeCheckedCallback = showMypyOutput;
+    this.mypyTypeChecker.typeCheckForever();
+
+    (
+      document.getElementById("mypy-run-checkbox") as HTMLInputElement
+    ).onchange = (event: Event) => {
+      const checked = (event.currentTarget as HTMLInputElement).checked;
+      this.mypyTypeChecker.active = checked;
+
+      mypyOutput.style.display = checked ? "block" : "none";
+      stdoutResize.style.display = checked ? "block" : "none";
+      stdout.style.width = checked ? "70%" : "100%";
+    };
   }
 
   isStdoutScrolledDown(): boolean {
     return (
       Math.abs(stdout.scrollHeight - stdout.scrollTop - stdout.clientHeight) <
-      10 // arbitrary tolerance, 10 works pretty well
+      10 // arbitrary tolerance
     );
   }
 
@@ -128,10 +198,10 @@ export class App {
     // Clear entry point location on
     // project directory change.
 
-    this.runnerWorker = new RunnerWorker(
-      (s) => this.stdoutFunc(s),
-      (s) => this.stderrFunc(s)
-    );
+    this.runnerWorker = new PythonRunner();
+
+    this.runnerWorker.stdoutFunc = (s) => this.stdoutFunc(s);
+    this.runnerWorker.stderrFunc = (s) => this.stderrFunc(s);
   }
 
   async requestEntryPoint() {
@@ -176,10 +246,9 @@ export class App {
     this.state.running = true;
 
     if (this.runnerWorker === undefined) {
-      this.runnerWorker = new RunnerWorker(
-        (s) => this.stdoutFunc(s),
-        (s) => this.stderrFunc(s)
-      );
+      this.runnerWorker = new PythonRunner();
+      this.runnerWorker.stdoutFunc = (s) => this.stdoutFunc(s);
+      this.runnerWorker.stderrFunc = (s) => this.stderrFunc(s);
     }
 
     try {
@@ -200,10 +269,12 @@ export class App {
         await this.state.entryPointHandle!.getFile()
       ).text();
 
-      await this.runnerWorker.runPython(
+      const result = await this.runnerWorker.runPython(
         mainContent,
         this.state.entryPointName!.text
       );
+
+      if (result.error) this.stderrFunc(result.error);
     } catch (e) {
       // Force new PyWorker creation on error.
       this.runnerWorker = undefined;
