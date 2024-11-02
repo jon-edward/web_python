@@ -35,6 +35,6 @@ available. See [packages built by Pyodide](https://pyodide.org/en/stable/usage/p
 for some common packages which don't have a pure Python wheel.
 
 Static type checking is available using [mypy](https://mypy-lang.org/).
-The site polls for changes to the project directory, and
+The site polls for changes to the project directory and
 feeds mypy's report to a separate terminal panel. This can be disabled
 if desired.
